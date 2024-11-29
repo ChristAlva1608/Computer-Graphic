@@ -481,7 +481,7 @@ class Viewer:
         # Clear previous plot
         self.ax.clear()
         
-        self.X, self.Z = np.meshgrid(self.values, self.values)
+        self.X, self.Z = np.meshgrid(self.mathfunc.range_x, self.mathfunc.range_x)
 
         # Get the current function if it exists
         if hasattr(self, 'func') and self.func is not None:
@@ -884,14 +884,14 @@ class Viewer:
             drawable.draw()
 
         # Render each camera's view on the right
-        # for i, pyramid in enumerate(self.pyramids):
-        #     row, col = divmod(i, cols)
-        #     GL.glViewport(left_width + col * cell_width, row * cell_height, cell_width, cell_height)
-        #     for drawable in self.drawables:
-        #         drawable.view = pyramid.view
-        #         drawable.projection = pyramid.projection
-        #         drawable.model = self.trackball.matrix()
-        #         drawable.draw()
+        for i, pyramid in enumerate(self.pyramids):
+            row, col = divmod(i, cols)
+            GL.glViewport(left_width + col * cell_width, row * cell_height, cell_width, cell_height)
+            for drawable in self.drawables:
+                drawable.view = pyramid.view
+                drawable.projection = pyramid.projection
+                drawable.model = self.trackball.matrix()
+                drawable.draw()
 
     def run(self):
         """ Main render loop for this OpenGL windows """
@@ -974,7 +974,8 @@ class Viewer:
             self.update_contour_trail()
 
             # Update and render contour plot
-            self.update_contour_plot()
+            if self.mathfunc:
+                self.update_contour_plot()
 
             self.update_pyramid_view()
 

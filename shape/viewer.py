@@ -10,8 +10,6 @@ from imgui.integrations.glfw import GlfwRenderer
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
-import io
-import copy
 
 from libs.buffer import *
 from libs.camera import *
@@ -140,7 +138,7 @@ class Viewer:
 
         # Ball parameters
         self.rotate_direction = 0.0
-        self.rotation_speed = 2.0
+        self.rotation_speed = 10.0
         self.radius = 0.05
         
         self.prev1_x = 0.0
@@ -167,7 +165,6 @@ class Viewer:
         self.learning_rate = 0.0
 
         # Initialize math function 
-        self.values = np.linspace(-2 * np.pi, 2 * np.pi, 200)
         self.selected_function = ''
         self.func = None # get function representation
 
@@ -176,7 +173,7 @@ class Viewer:
         self.rotate_changed = False
         self.radius_changed = False
         self.lr_changed = False
-
+        self.pyramidnumber = False
         # Initialize camera
         self.camera = Camera()
 
@@ -193,6 +190,8 @@ class Viewer:
         self.ball1_trail = []
         self.ball2_trail = []
 
+        #Initialize virtual camera
+        self.num_pyramids = 1
         # register event handlers
         glfw.set_key_callback(self.win, self.on_key)
         
@@ -242,6 +241,16 @@ class Viewer:
                                           format="%.2f")
         if self.radius_changed:
             self.radius = radius_value
+        
+        imgui.set_next_item_width(100)
+        if self.multi_camera_option:
+            self.pyramidnumber, num_pyramids = imgui.slider_int("Number of Pyramids", 
+                                            self.num_pyramids, 
+                                            min_value=1, 
+                                            max_value=18,
+                                            format="%d")
+        if self.pyramidnumber:
+            self.num_pyramids = num_pyramids
 
         # Existing shape selection code
         imgui.set_next_item_width(100)
@@ -351,6 +360,14 @@ class Viewer:
         imgui.render()
         self.imgui_impl.render(imgui.get_draw_data())
 
+    def get_yaw_pitch_from_direction(self, a, b):
+        direction = glm.normalize(b - a)
+        # Calculate yaw (angle in the XZ plane)
+        yaw = glm.degrees(np.arctan2(direction.z, direction.x))
+        # Calculate pitch (vertical angle)
+        pitch = glm.degrees(np.arcsin(direction.y))
+        return yaw, pitch
+
     def random_position(self):
         self.position1_initialized = True
         self.position2_initialized = True
@@ -408,45 +425,6 @@ class Viewer:
         self.line.add_vertex((self.obj1_center_x, self.obj1_center_y, self.obj1_center_z))
         self.line.draw()
 
-    def setup_framebuffers(self, num_cameras):
-        """Initialize framebuffers and textures for each camera"""
-        for i in range(num_cameras):
-            # Generate and bind framebuffer
-            fbo = GL.glGenFramebuffers(1)
-            GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, fbo)
-            
-            # Generate texture for color attachment
-            texture = GL.glGenTextures(1)
-            GL.glBindTexture(GL.GL_TEXTURE_2D, texture)
-            GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGB, 
-                           self.width, self.height, 0,
-                           GL.GL_RGB, GL.GL_UNSIGNED_BYTE, None)
-            GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
-            GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
-            
-            # Attach texture to framebuffer
-            GL.glFramebufferTexture2D(GL.GL_FRAMEBUFFER, GL.GL_COLOR_ATTACHMENT0,
-                                     GL.GL_TEXTURE_2D, texture, 0)
-            
-            # Generate and attach depth renderbuffer
-            rbo = GL.glGenRenderbuffers(1)
-            GL.glBindRenderbuffer(GL.GL_RENDERBUFFER, rbo)
-            GL.glRenderbufferStorage(GL.GL_RENDERBUFFER, GL.GL_DEPTH_COMPONENT24,
-                                   self.width, self.height)
-            GL.glFramebufferRenderbuffer(GL.GL_FRAMEBUFFER, GL.GL_DEPTH_ATTACHMENT,
-                                       GL.GL_RENDERBUFFER, rbo)
-            
-            # Check framebuffer completeness
-            if GL.glCheckFramebufferStatus(GL.GL_FRAMEBUFFER) != GL.GL_FRAMEBUFFER_COMPLETE:
-                print(f"Framebuffer {i} is not complete!")
-            
-            self.framebuffers.append(fbo)
-            self.textures.append(texture)
-            self.depth_renderbuffers.append(rbo)
-            
-        # Reset to default framebuffer
-        GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, 0)
-
     def update_contour_plot(self):
         if not self.show_contour:
             return
@@ -454,7 +432,16 @@ class Viewer:
         # Clear previous plot
         self.ax.clear()
         
-        self.X, self.Z = np.meshgrid(self.values, self.values)
+        # # Rotate the contour map when the terrain rotate
+        # coordinates = self.mathfunc.vertices
+        # coordinates = np.hstack([coordinates, np.ones((self.mathfunc.vertices.shape[0], 1))]) # to multiply with rotation matrix
+        # coordinates = np.dot(coordinates, self.mathfunc.view)
+        # self.X = coordinates[:, 0]
+        # self.Z = coordinates[:, 2]
+        # self.X = np.reshape(self.X, (self.mathfunc.resolution, self.mathfunc.resolution))
+        # self.Z = np.reshape(self.Z, (self.mathfunc.resolution, self.mathfunc.resolution))
+
+        self.X, self.Z = np.meshgrid(self.mathfunc.range_x, self.mathfunc.range_x)
 
         # Get the current function if it exists
         if hasattr(self, 'func') and self.func is not None:
@@ -465,20 +452,34 @@ class Viewer:
             contour = self.ax.contourf(self.X, self.Z, Y, levels=20, 
                                      cmap='coolwarm')  # Changed to coolwarm colormap
             
-            # Plot first ball position
-            if hasattr(self, 'obj1_center_x') and hasattr(self, 'obj1_center_z'):
-                self.ax.plot(self.obj1_center_x, self.obj1_center_z, 'ko',  # Black outline
-                           markerfacecolor='y',  # White fill
-                           markersize=10, 
-                           label='Ball Position')
-                
-                # Add height value annotation near the ball
-                height = self.func(self.obj1_center_x, self.obj1_center_z) + self.radius
-                self.ax.annotate(f'Height: {height:.2f}', 
-                               (self.obj1_center_x, self.obj1_center_z),
-                               xytext=(10, 10), textcoords='offset points')
+            if self.sphere_option:
+                # Plot first ball position
+                if hasattr(self, 'obj1_center_x') and hasattr(self, 'obj1_center_z'):
+                    self.ax.plot(self.obj1_center_x, self.obj1_center_z, 'ko',  # Black outline
+                            markerfacecolor='y',  # White fill
+                            markersize=10, 
+                            label='Ball Position')
+                    
+                    # Add height value annotation near the ball
+                    height = self.func(self.obj1_center_x, self.obj1_center_z) + self.radius
+                    self.ax.annotate(f'Height: {height:.2f}', 
+                                (self.obj1_center_x, self.obj1_center_z),
+                                xytext=(10, 10), textcoords='offset points')
             
             if self.two_optimizers:
+                # Plot first ball position
+                if hasattr(self, 'obj1_center_x') and hasattr(self, 'obj1_center_z'):
+                    self.ax.plot(self.obj1_center_x, self.obj1_center_z, 'ko',  # Black outline
+                            markerfacecolor='y',  # White fill
+                            markersize=10, 
+                            label='Ball Position')
+                    
+                    # Add height value annotation near the ball
+                    height = self.func(self.obj1_center_x, self.obj1_center_z) + self.radius
+                    self.ax.annotate(f'Height: {height:.2f}', 
+                                (self.obj1_center_x, self.obj1_center_z),
+                                xytext=(10, 10), textcoords='offset points')
+                    
                 # Plot second ball position
                 if hasattr(self, 'obj2_center_x') and hasattr(self, 'obj2_center_z'):
                     self.ax.plot(self.obj2_center_x, self.obj2_center_z, 'ko',  # Black outline
@@ -774,27 +775,29 @@ class Viewer:
         sphere.generate_sphere()
 
         self.pyramids = []
-        self.num_pyramids = 9
         for i in range(self.num_pyramids):
             pyramid = Pyramid(self.phong_shader)
             pyramid.setup()
             
-            # Position pyramid around the object
-            theta = i * (2 * np.pi) / self.num_pyramids  # Distribute evenly around the sphere
-            x = sphere.radius * np.cos(theta)
-            z = sphere.radius * np.sin(theta)
+            # Golden spiral method for even distribution
+            phi = np.arccos(1 - 2 * (i + 0.5) / self.num_pyramids)  # Latitude
+            theta = np.pi * (1 + 5**0.5) * i  # Longitude (golden angle)
+            
+            x = sphere.radius * np.sin(phi) * np.cos(theta)
+            y = sphere.radius * np.sin(phi) * np.sin(theta)
+            z = sphere.radius * np.cos(phi)
 
-            P = glm.vec3(x,0,z)
+            P = glm.vec3(x, y, z)
             O = glm.vec3(0.0, 0.0, 0.0)
             OP = O - P # direction vector of pyramid
 
             # First, move the pyramid to the position in sphere
             translation = glm.translate(glm.mat4(1.0), P) 
             
-            # Split direction vector into 2 component vector
+            # Compute component vector of OP
             y_component_vec = glm.vec3(0.0, OP.y, 0.0) 
             xz_component_vec = glm.vec3(OP.x, 0.0, OP.z)
-            
+
             # Two steps to set the direction of the camera directly look into the sphere center
             # Step 1: rotate around y-axis
             init_vec1 = glm.vec3(0.0,0.0,-1.0)
@@ -817,59 +820,61 @@ class Viewer:
                 y_axis_rotation = glm.rotate(glm.mat4(1.0), y_angle, glm.vec3(0.0, 1.0, 0.0))
 
             # Step 2: rotate around z-axis
-            init_vec2 = glm.vec3(1.0,0.0,0.0)
-            dot_product = glm.dot(OP, init_vec2)
-            magnitude_OP = glm.length(OP)
-            magnitude_init_vec2 = glm.length(init_vec2)
+            PO = O -P
+            # Compute component vector of PO
+            y_component_vec = glm.vec3(0.0, -OP.y, 0.0) 
+            xz_component_vec = glm.vec3(-OP.x, 0.0, -OP.z)
+            alpha_rotation_axis = np.cross(y_component_vec, xz_component_vec)
 
-            # Calculate the cosine of the angle
-            cos_theta = dot_product / (magnitude_OP * magnitude_init_vec2)
+            sin_theta = glm.length(y_component_vec) / sphere.radius
+            sin_theta = np.clip(sin_theta, -1.0, 1.0)
+            alpha_angle = np.arcsin(sin_theta)
 
-            # Ensure the cosine is within the valid range for arccos due to floating point precision
-            cos_theta = np.clip(cos_theta, -1.0, 1.0)
-
-            # Calculate the angle in radians
-            z_angle = np.arccos(cos_theta)
-            z_axis_rotation = glm.rotate(glm.mat4(1.0), glm.radians(z_angle), glm.vec3(0.0, 0.0, 1.0))
+            if P.y > 0: # If position if top-half sphere
+                alpha_axis_rotation = glm.rotate(glm.mat4(1.0), -alpha_angle, alpha_rotation_axis)
+            else:
+                alpha_axis_rotation = glm.rotate(glm.mat4(1.0), alpha_angle, alpha_rotation_axis)
 
             # Apply model matrix for pyramid
-            pyramid.model = translation * y_axis_rotation 
+            pyramid.model = translation * y_axis_rotation * alpha_axis_rotation 
             
             # Set up view matrix for camera
-            eye = P
-            at = glm.vec3(0,0,0)
+            yaw, pitch = self.get_yaw_pitch_from_direction(P, glm.vec3(0, 0, 0))
+            direction = glm.vec3(
+                np.cos(glm.radians(yaw)) * np.cos(glm.radians(pitch)),
+                np.sin(glm.radians(pitch)),
+                np.sin(glm.radians(yaw)) * np.cos(glm.radians(pitch))
+            )
+            right = glm.normalize(glm.cross(direction, glm.vec3(0, 1, 0)))
+            up = glm.normalize(glm.cross(right, direction))
+
             up = glm.normalize(glm.vec3(pyramid.model[1]))
-            
-            pyramid.view = glm.lookAt(eye, at, up)
+            pyramid.view = glm.lookAt(P, P + direction, up)
             pyramid.projection = glm.perspective(glm.radians(self.fov), cell_width / cell_height, 0.1, 100.0)
             
             self.pyramids.append(pyramid)
 
         # Show multi-cam system on the left
-        GL.glViewport(0, 0, left_width, left_height)
-        self.new_pyramids = [pyramid.clone() for pyramid in self.pyramids]
-        for i in range(len(self.pyramids)):  
-            # self.new_pyramids[i].setup()
-            self.new_pyramids[i].model = self.pyramids[i].model
-            # self.new_pyramids[i].view = self.pyramids[i].view
-            # self.new_pyramids[i].projection = self.pyramids[i].projection
-            self.new_pyramids[i].draw()
+        GL.glViewport(0, 0, left_width, left_height*2)
+        for pyramid in self.pyramids:
+            pyramid.draw()
 
         for drawable in self.drawables:
-            win_size = glfw.get_window_size(self.win)
-            drawable.view = self.trackball.view_matrix3()
+            win_size = (left_width, left_height*2)
+            time = glfw.get_time()
+            drawable.view = self.trackball.view_matrix3() * glm.rotate(glm.mat4(1.0), glm.radians(time * self.rotation_speed), glm.vec3(0.0, 1.0, 0.0))
             drawable.projection = self.trackball.projection_matrix(win_size)
             drawable.draw()
 
         # Render each camera's view on the right
-        # for i, pyramid in enumerate(self.pyramids):
-        #     row, col = divmod(i, cols)
-        #     GL.glViewport(left_width + col * cell_width, row * cell_height, cell_width, cell_height)
-        #     for drawable in self.drawables:
-        #         drawable.view = pyramid.view
-        #         drawable.projection = pyramid.projection
-        #         drawable.model = self.trackball.matrix()
-        #         drawable.draw()
+        for i, pyramid in enumerate(self.pyramids):
+            row, col = divmod(i, cols)
+            GL.glViewport(left_width + col * cell_width, row * cell_height, cell_width, cell_height)
+            for drawable in self.drawables:
+                time = glfw.get_time()
+                drawable.view = pyramid.view * glm.rotate(glm.mat4(1.0), glm.radians(time * self.rotation_speed), glm.vec3(0.0, 1.0, 0.0))
+                drawable.projection = pyramid.projection
+                drawable.draw()
 
     def run(self):
         """ Main render loop for this OpenGL windows """
@@ -946,7 +951,8 @@ class Viewer:
             self.update_contour_trail()
 
             # Update and render contour plot
-            self.update_contour_plot()
+            if self.mathfunc:
+                self.update_contour_plot()
 
             self.update_pyramid_view()
 
@@ -1047,7 +1053,7 @@ class Viewer:
             sphere2 = Sphere(self.phong_vert, self.phong_frag).setup()
             model.extend([sphere1, sphere2])
         if self.multi_camera_option:
-            model.extend(self.pyramids)
+            # model.extend(self.pyramids)
             model.append(Cylinder(self.phong_vert, self.phong_frag).setup())
 
         # Add the created model to the viewer's drawables and mark as created
