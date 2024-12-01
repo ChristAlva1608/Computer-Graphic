@@ -33,7 +33,7 @@ sys.path.insert(0, PYTHONPATH)
 # ------------  Viewer class & windows management ------------------------------
 class Viewer:
     """ GLFW viewer windows, with classic initialization & graphics loop """
-    def __init__(self, width=1200, height=800):
+    def __init__(self, width=1200, height=700):
         self.fill_modes = cycle([GL.GL_LINE, GL.GL_POINT, GL.GL_FILL])
         
         # version hints: create GL windows with >= OpenGL 3.3 and core profile
@@ -102,10 +102,10 @@ class Viewer:
         self.move_camera_option = False
 
         # Variables for user selection
+        self.selected_pyramid = -1
         self.select_optim = -1
         self.selected_shape = -1
         self.selected_mesh = -1
-        self.selected_pyramid = None
         self.shape_created = False
         self.optimization_method = ""
 
@@ -116,7 +116,7 @@ class Viewer:
         # Initialize model matrix
         self.model = glm.mat4(1.0)
         self.view = glm.lookAt(glm.vec3(0, 0, 10), glm.vec3(0, 0, 0), glm.vec3(0, 1, 0))
-        self.projection = glm.perspective(glm.radians(45.0), 800.0 / 600.0, 0.1, 100.0)
+        self.projection = glm.perspective(glm.radians(45.0), 700.0 / 600.0, 0.1, 100.0)
 
         # Initialize object class
         sphere =  None
@@ -174,8 +174,10 @@ class Viewer:
         self.radius_changed = False
         self.lr_changed = False
         self.pyramidnumber = False
+        
         # Initialize camera
         self.camera = Camera()
+        self.camera_texture = None
 
         # Initialize previous time
         self.prev_time = 0.0
@@ -276,7 +278,7 @@ class Viewer:
 
         if self.optimizer_option:
             
-            imgui.set_next_window_position(0, 250)  
+            imgui.set_next_window_position(0, 220)  
             imgui.set_next_window_size(300, 100) 
 
             # Start new frame
@@ -319,7 +321,6 @@ class Viewer:
                 self.restart()
             
             imgui.end()
-
         # If DynamicMesh is selected, show function selection
         if self.mesh_option:
             imgui.set_next_item_width(100)
@@ -344,7 +345,14 @@ class Viewer:
             # Add checkbox for contour plot
             imgui.set_next_item_width(100)
             _, self.show_contour = imgui.checkbox("Show Contour", self.show_contour)
-
+        
+        if self.multi_camera_option:
+            imgui.set_next_item_width(100)
+            _, self.selected_pyramid = imgui.combo(
+                "Select Pyramid",
+                int(self.selected_pyramid),
+                [str(i) for i in range(1, self.num_pyramids + 1)]
+            )
         # Confirm button
         if imgui.button("Confirm", width=100):
 
@@ -421,7 +429,7 @@ class Viewer:
     def update_3d_trail(self):
         self.line.model = glm.mat4(1.0)
         self.line.view = self.trackball.view_matrix2(self.cameraPos)
-        self.line.projection = glm.perspective(glm.radians(self.fov), 800.0 / 600.0, 0.1, 100.0)
+        self.line.projection = glm.perspective(glm.radians(self.fov), 700.0 / 600.0, 0.1, 100.0)
         self.line.add_vertex((self.obj1_center_x, self.obj1_center_y, self.obj1_center_z))
         self.line.draw()
 
@@ -432,7 +440,7 @@ class Viewer:
         # Clear previous plot
         self.ax.clear()
         
-        # # Rotate the contour map when the terrain rotate
+        # # Rotate the contour map when the Graph rotate
         # coordinates = self.mathfunc.vertices
         # coordinates = np.hstack([coordinates, np.ones((self.mathfunc.vertices.shape[0], 1))]) # to multiply with rotation matrix
         # coordinates = np.dot(coordinates, self.mathfunc.view)
@@ -535,7 +543,7 @@ class Viewer:
             return
             
         # Set up ImGui window for contour plot
-        imgui.set_next_window_position(900, 0, imgui.ALWAYS)  # Changed to COND_ONCE
+        imgui.set_next_window_position(0, 350, imgui.ALWAYS)  # Changed to COND_ONCE
         imgui.set_next_window_size(300, 300)  
         expanded, visible = imgui.begin("Height Contour Map", True)
         
@@ -558,20 +566,20 @@ class Viewer:
 
         imgui.end()
 
-    def update_pyramid_view(self):
-        if self.selected_pyramid:
-            # Render the view of the selected pyramid in a small window
-            viewport_size = (300, 200)
-            GL.glViewport(0, 0, *viewport_size)
+    # def update_pyramid_view(self):
+    #     if self.selected_pyramid:
+    #         # Render the view of the selected pyramid in a small window
+    #         viewport_size = (300, 200)
+    #         GL.glViewport(0, 0, *viewport_size)
 
-            # Clear the color and depth buffers
-            GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
+    #         # Clear the color and depth buffers
+    #         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
 
-            # Render the scene from the selected pyramid's perspective
-            self.selected_pyramid.draw()
+    #         # Render the scene from the selected pyramid's perspective
+    #         self.selected_pyramid.draw()
 
-            # Reset the viewport to the full window size
-            GL.glViewport(0, 0, *self.win_size)
+    #         # Reset the viewport to the full window size
+    #         GL.glViewport(0, 0, *self.win_size)
 
     def update_radius_sphere(self):
         for drawable in self.drawables:
@@ -586,11 +594,11 @@ class Viewer:
             time = glfw.get_time()
             drawable.model = glm.rotate(glm.mat4(1.0), glm.radians(time * self.rotation_speed), glm.vec3(0.0, 1.0, 0.0))
             drawable.view = glm.lookAt(glm.vec3(0, 0, 5), glm.vec3(0, 0, 0), glm.vec3(0, 1, 0))
-            drawable.projection = glm.perspective(glm.radians(45.0), 800.0 / 600.0, 0.1, 100.0)
+            drawable.projection = glm.perspective(glm.radians(45.0), 700.0 / 600.0, 0.1, 100.0)
 
     def SGD_visualization(self, sphere):
         view_matrix = glm.lookAt(glm.vec3(0, 10, 10), glm.vec3(0, 0, 0), glm.vec3(0, 1, 0))
-        projection_matrix = glm.perspective(glm.radians(self.fov), 800.0 / 600.0, 0.1, 100.0)
+        projection_matrix = glm.perspective(glm.radians(self.fov), 700.0 / 600.0, 0.1, 100.0)
 
         self.mathfunc.model = glm.mat4(1.0)
         self.mathfunc.view = view_matrix
@@ -641,19 +649,15 @@ class Viewer:
             self.obj1_center_z = self.obj1_center_z - self.learning_rate * dz
             y = self.mathfunc.function(self.obj1_center_x, self.obj1_center_z)
             if hasattr(self.mathfunc, "Y_min"):
-                self.obj1_center_y = 2 * (y - self.mathfunc.Y_min) / (self.mathfunc.Y_max - self.mathfunc.Y_min) - 1 # scale to range [-1, 1]
+                self.obj1_center_y = 3 * (y - self.mathfunc.Y_min) / (self.mathfunc.Y_max - self.mathfunc.Y_min) - 1.5 # scale to range [-1, 1]
             self.obj1_center_y += self.radius # to lay sphere on surface
-
-            print(f'x: {self.obj1_center_x}')
-            print(f'y: {self.obj1_center_y}')
-            print(f'z: {self.obj1_center_z}')
 
         # Draw path trail of the ball
         self.update_3d_trail()
 
     def Adam_visualization(self, sphere):
         view_matrix = glm.lookAt(glm.vec3(0, 10, 10), glm.vec3(0, 0, 0), glm.vec3(0, 1, 0))
-        projection_matrix = glm.perspective(glm.radians(self.fov), 800.0 / 600.0, 0.1, 100.0)
+        projection_matrix = glm.perspective(glm.radians(self.fov), 700.0 / 600.0, 0.1, 100.0)
 
         self.mathfunc.model = glm.mat4(1.0)
         self.mathfunc.view = view_matrix
@@ -692,7 +696,7 @@ class Viewer:
 
         # Compute updated Y position
         y = self.mathfunc.function(self.obj2_center_x, self.obj2_center_z)
-        self.obj2_center_y = 2 * (y - self.mathfunc.Y_min) / (self.mathfunc.Y_max - self.mathfunc.Y_min) - 1  # Scale to range [-1, 1]
+        self.obj2_center_y = 3 * (y - self.mathfunc.Y_min) / (self.mathfunc.Y_max - self.mathfunc.Y_min) - 1.5  # Scale to range [-1, 1]
         self.obj2_center_y += self.radius  # Lay sphere on surface
 
         # Increment timestep
@@ -745,12 +749,11 @@ class Viewer:
         sphere2.setup()
         self.Adam_visualization(sphere2)
 
-
     def move_camera_around(self):
         for drawable in self.drawables:
             drawable.model = glm.mat4(1.0)
             drawable.view = self.trackball.view_matrix2(self.cameraPos)
-            drawable.projection = glm.perspective(glm.radians(self.fov), 800.0 / 600.0, 0.1, 100.0)
+            drawable.projection = glm.perspective(glm.radians(self.fov), 700.0 / 600.0, 0.1, 100.0)
     
     def use_trackball(self):
         for drawable in self.drawables:
@@ -758,14 +761,42 @@ class Viewer:
                 drawable.view = self.trackball.view_matrix3()
                 drawable.projection = self.trackball.projection_matrix(win_size)
 
+    def setup_framebuffer(self, width, height):
+        # Create framebuffer
+        self.fbo = GL.glGenFramebuffers(1)
+        GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, self.fbo)
+
+        # Create texture for camera views
+        self.camera_texture = GL.glGenTextures(1)
+        GL.glBindTexture(GL.GL_TEXTURE_2D, self.camera_texture)
+        GL.glTexImage2D(GL.GL_TEXTURE_2D, 0, GL.GL_RGB, width, height, 0, GL.GL_RGB, GL.GL_UNSIGNED_BYTE, None)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_LINEAR)
+        GL.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_LINEAR)
+        
+        # Create renderbuffer for depth testing
+        self.rbo = GL.glGenRenderbuffers(1)
+        GL.glBindRenderbuffer(GL.GL_RENDERBUFFER, self.rbo)
+        GL.glRenderbufferStorage(GL.GL_RENDERBUFFER, GL.GL_DEPTH_COMPONENT24, width, height)
+        
+        # Attach texture and renderbuffer to framebuffer
+        GL.glFramebufferTexture2D(GL.GL_FRAMEBUFFER, GL.GL_COLOR_ATTACHMENT0, GL.GL_TEXTURE_2D, self.camera_texture, 0)
+        GL.glFramebufferRenderbuffer(GL.GL_FRAMEBUFFER, GL.GL_DEPTH_ATTACHMENT, GL.GL_RENDERBUFFER, self.rbo)
+
+        # Check framebuffer status
+        if GL.glCheckFramebufferStatus(GL.GL_FRAMEBUFFER) != GL.GL_FRAMEBUFFER_COMPLETE:
+            print("Framebuffer is not complete!")
+
+        # Bind back to default framebuffer
+        GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, 0)
+
     def multi_cam(self):
         # Set up some parameters
         rows = 3
         cols = 3
         left_width = 1200
-        left_height = 800
+        left_height = 700
         right_width = 1200
-        right_height = 800
+        right_height = 400
         cell_width = right_width // cols
         cell_height = right_height // rows
 
@@ -775,19 +806,11 @@ class Viewer:
         sphere.generate_sphere()
 
         self.pyramids = []
-        for i in range(self.num_pyramids):
+        for coord in sphere.vertices[:len(sphere.vertices)//2:2]:
             pyramid = Pyramid(self.phong_shader)
             pyramid.setup()
             
-            # Golden spiral method for even distribution
-            phi = np.arccos(1 - 2 * (i + 0.5) / self.num_pyramids)  # Latitude
-            theta = np.pi * (1 + 5**0.5) * i  # Longitude (golden angle)
-            
-            x = sphere.radius * np.sin(phi) * np.cos(theta)
-            y = sphere.radius * np.sin(phi) * np.sin(theta)
-            z = sphere.radius * np.cos(phi)
-
-            P = glm.vec3(x, y, z)
+            P = glm.vec3(coord[0], coord[1], coord[2])
             O = glm.vec3(0.0, 0.0, 0.0)
             OP = O - P # direction vector of pyramid
 
@@ -820,7 +843,7 @@ class Viewer:
                 y_axis_rotation = glm.rotate(glm.mat4(1.0), y_angle, glm.vec3(0.0, 1.0, 0.0))
 
             # Step 2: rotate around z-axis
-            PO = O -P
+            PO = O - P
             # Compute component vector of PO
             y_component_vec = glm.vec3(0.0, -OP.y, 0.0) 
             xz_component_vec = glm.vec3(-OP.x, 0.0, -OP.z)
@@ -830,13 +853,13 @@ class Viewer:
             sin_theta = np.clip(sin_theta, -1.0, 1.0)
             alpha_angle = np.arcsin(sin_theta)
 
-            if P.y > 0: # If position if top-half sphere
-                alpha_axis_rotation = glm.rotate(glm.mat4(1.0), -alpha_angle, alpha_rotation_axis)
-            else:
-                alpha_axis_rotation = glm.rotate(glm.mat4(1.0), alpha_angle, alpha_rotation_axis)
+            # if P.y > 0: # If position if top-half sphere
+            #     alpha_axis_rotation = glm.rotate(glm.mat4(1.0), -alpha_angle, alpha_rotation_axis)
+            # else:
+            alpha_axis_rotation = glm.rotate(glm.mat4(1.0), alpha_angle, alpha_rotation_axis)
 
             # Apply model matrix for pyramid
-            pyramid.model = translation * y_axis_rotation * alpha_axis_rotation 
+            pyramid.model = translation * y_axis_rotation 
             
             # Set up view matrix for camera
             yaw, pitch = self.get_yaw_pitch_from_direction(P, glm.vec3(0, 0, 0))
@@ -856,25 +879,40 @@ class Viewer:
 
         # Show multi-cam system on the left
         GL.glViewport(0, 0, left_width, left_height*2)
-        for pyramid in self.pyramids:
-            pyramid.draw()
-
         for drawable in self.drawables:
             win_size = (left_width, left_height*2)
-            time = glfw.get_time()
-            drawable.view = self.trackball.view_matrix3() * glm.rotate(glm.mat4(1.0), glm.radians(time * self.rotation_speed), glm.vec3(0.0, 1.0, 0.0))
+            # time = glfw.get_time()
+            # drawable.view = self.trackball.view_matrix3() * glm.rotate(glm.mat4(1.0), glm.radians(time * self.rotation_speed), glm.vec3(0.0, 1.0, 0.0))
+            drawable.view = self.trackball.view_matrix3()
             drawable.projection = self.trackball.projection_matrix(win_size)
             drawable.draw()
 
-        # Render each camera's view on the right
-        for i, pyramid in enumerate(self.pyramids):
-            row, col = divmod(i, cols)
-            GL.glViewport(left_width + col * cell_width, row * cell_height, cell_width, cell_height)
-            for drawable in self.drawables:
-                time = glfw.get_time()
-                drawable.view = pyramid.view * glm.rotate(glm.mat4(1.0), glm.radians(time * self.rotation_speed), glm.vec3(0.0, 1.0, 0.0))
-                drawable.projection = pyramid.projection
-                drawable.draw()
+        # # Render each camera's view on the right
+        # for i, pyramid in enumerate(self.pyramids):
+        #     row, col = divmod(i, cols)
+        #     GL.glViewport(left_width + col * cell_width, row * cell_height, cell_width, cell_height)
+        #     # Render scene to framebuffer
+        #     # GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, self.fbo)
+        #     # GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
+            
+        #     for drawable in self.drawables:
+        #         time = glfw.get_time()
+        #         drawable.view = pyramid.view * glm.rotate(glm.mat4(1.0), glm.radians(time * self.rotation_speed), glm.vec3(0.0, 1.0, 0.0))
+        #         # drawable.view = pyramid.view
+        #         drawable.projection = pyramid.projection
+        #         drawable.draw()
+            
+        #     # Switch back to default framebuffer and load texture
+        #     # GL.glBindFramebuffer(GL.GL_FRAMEBUFFER, 0)
+        #     # pyramid.load_texture(self.camera_texture)
+
+        # # Show specific camera
+        # GL.glViewport(left_width, right_height*2, right_width, right_height)
+        # for drawable in self.drawables:
+        #     time = glfw.get_time()
+        #     drawable.view = self.pyramids[self.selected_pyramid].view * glm.rotate(glm.mat4(1.0), glm.radians(time * self.rotation_speed), glm.vec3(0.0, 1.0, 0.0))
+        #     drawable.projection = self.pyramids[self.selected_pyramid].projection
+        #     drawable.draw()
 
     def run(self):
         """ Main render loop for this OpenGL windows """
@@ -890,7 +928,7 @@ class Viewer:
                 ########################################################################
                 sphere = None
                 for drawable in self.drawables:
-                    if isinstance(drawable, (MathFunction, Terrain)):
+                    if isinstance(drawable, (MathFunction, Graph)):
                         self.mathfunc = drawable
 
                     if isinstance(drawable, (Sphere, SubdividedSphere)):
@@ -903,7 +941,7 @@ class Viewer:
                 ########################################################################
                 sphere = None
                 for drawable in self.drawables:
-                    if isinstance(drawable, (MathFunction, Terrain)):
+                    if isinstance(drawable, (MathFunction, Graph)):
                         self.mathfunc = drawable
 
                     if isinstance(drawable, (Sphere, SubdividedSphere)):
@@ -915,7 +953,7 @@ class Viewer:
                 #                     Two Optimizers Visualization                     #
                 ########################################################################
                 for drawable in self.drawables:
-                    if isinstance(drawable, (MathFunction, Terrain)):
+                    if isinstance(drawable, (MathFunction, Graph)):
                         self.mathfunc = drawable
                 self.visualize_2_optimizers()
 
@@ -941,7 +979,7 @@ class Viewer:
                 for drawable in self.drawables:
                     drawable.model = glm.mat4(1.0)
                     drawable.view = glm.lookAt(glm.vec3(0, 0, 10), glm.vec3(0, 0, 0), glm.vec3(0, 1, 0))
-                    drawable.projection = glm.perspective(glm.radians(45.0), 800.0 / 600.0, 0.1, 100.0)
+                    drawable.projection = glm.perspective(glm.radians(45.0), 700.0 / 600.0, 0.1, 100.0)
 
             if not self.multi_camera_option:
                 for drawable in self.drawables:
@@ -954,7 +992,7 @@ class Viewer:
             if self.mathfunc:
                 self.update_contour_plot()
 
-            self.update_pyramid_view()
+            # self.update_pyramid_view()
 
             # Render GUI menu
             self.imgui_menu()
@@ -1045,15 +1083,15 @@ class Viewer:
         if self.mesh_option and self.selected_function:  # DynamicMesh
             self.func = get_function(self.selected_function)
             if self.selected_function == '3*(1-x)**2*exp(-x**2-(z+1)**2)-10*(x/5 - x**3 - z**5)*exp(-x**2-z**2) - 1/3*exp(-(x+1)**2-z**2)':
-                model.append(Terrain("shader/phong.vert", "shader/phong.frag", self.func).setup())    
+                model.append(Graph("shader/mesh.vert", "shader/mesh.frag", self.func).setup())    
             else:
-                model.append(MathFunction("shader/phong.vert", "shader/phong.frag", self.func).setup())
+                model.append(MathFunction("shader/mesh.vert", "shader/mesh.frag", self.func).setup())
         if self.two_optimizers:
             sphere1 = Sphere(self.phong_vert, self.phong_frag).setup()
             sphere2 = Sphere(self.phong_vert, self.phong_frag).setup()
             model.extend([sphere1, sphere2])
         if self.multi_camera_option:
-            # model.extend(self.pyramids)
+            model.extend(self.pyramids)
             model.append(Cylinder(self.phong_vert, self.phong_frag).setup())
 
         # Add the created model to the viewer's drawables and mark as created
