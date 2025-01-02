@@ -84,8 +84,6 @@ class Cube(object):
 
         GL.glUseProgram(self.shader.render_idx)
 
-        self.uma.setup_texture("texture1", "texture/sky.jpeg")
-
         # Load the texture
         self.uma.setup_texture("texture1", "texture/paper.jpg")  # Replace with your texture path
 

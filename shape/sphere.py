@@ -6,15 +6,19 @@ import numpy as np
 import math
 
 class Sphere:
-    def __init__(self, vert_shader, frag_shader, radius=0.05, sectors=20, stacks=20):
+    def __init__(self, shader, radius=0.05, sectors=20, stacks=20):
         self.radius = radius
         self.sectors = sectors
         self.stacks = stacks
-        self.shader = Shader(vert_shader, frag_shader)
+        self.shader = shader
         self.uma = UManager(self.shader)
         self.vao = VAO()
 
         self.generate_sphere()
+
+    def update_shader(self, shader):
+        self.shader = shader
+        self.uma = UManager(self.shader)
 
     def generate_sphere(self):
 
@@ -27,14 +31,14 @@ class Sphere:
 
         for i in range(self.stacks + 1):
             stack_angle = math.pi / 2 - i * stack_step
-            xy = self.radius * math.cos(stack_angle)
-            z = self.radius * math.sin(stack_angle)
+            xz = self.radius * math.cos(stack_angle)
+            y = self.radius * math.sin(stack_angle)
 
             for j in range(self.sectors + 1):
                 sector_angle = j * sector_step
 
-                x = xy * math.cos(sector_angle)
-                y = xy * math.sin(sector_angle)
+                x = xz * math.cos(sector_angle)
+                z = xz * math.sin(sector_angle)
 
                 vertices.append([x, y, z])
                 normals.append([x/self.radius, y/self.radius, z/self.radius])
@@ -115,10 +119,10 @@ class Sphere:
         GL.glDrawElements(GL.GL_TRIANGLE_STRIP, len(self.indices), GL.GL_UNSIGNED_INT, None)
 
 class SubdividedSphere:
-    def __init__(self, vert_shader, frag_shader, radius=0.2, subdivisions=3):
+    def __init__(self, shader, radius=0.2, subdivisions=3):
         self.radius = radius
         self.subdivisions = subdivisions
-        self.shader = Shader(vert_shader, frag_shader)
+        self.shader = shader
         self.uma = UManager(self.shader)
         self.vao = VAO()
         
@@ -130,6 +134,10 @@ class SubdividedSphere:
         
         self.generate_sphere()
 
+    def update_shader(self, shader):
+        self.shader = shader
+        self.uma = UManager(self.shader)
+        
     def normalize_vertex(self, v):
         """Normalize vertex to lie on sphere surface"""
         length = math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])

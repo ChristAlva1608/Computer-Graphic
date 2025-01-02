@@ -6,11 +6,11 @@ import math
 import ctypes
 
 class Cylinder:
-    def __init__(self, vert_shader, frag_shader, radius=1.0, height=2.0, sectors=32):
+    def __init__(self, shader, radius=1.0, height=2.0, sectors=32):
         self.radius = radius
         self.height = height
         self.sectors = sectors
-        self.shader = Shader(vert_shader, frag_shader)
+        self.shader = shader
         self.uma = UManager(self.shader)
         self.vao = VAO()
         
@@ -107,6 +107,10 @@ class Cylinder:
         self.top_indices_count = 3 * self.sectors  # 3 vertices per triangle * sectors
         self.bottom_indices_count = 3 * self.sectors  # 3 vertices per triangle * sectors
 
+    def update_shader(self, shader):
+        self.shader = shader
+        self.uma = UManager(self.shader)
+
     def setup(self):
         self.vao.add_vbo(0, self.vertices, ncomponents=3, stride=0, offset=None)
         self.vao.add_vbo(1, self.normals, ncomponents=3, stride=0, offset=None)
@@ -117,7 +121,7 @@ class Cylinder:
 
         # Initial transformations
         self.model = glm.mat4(1.0)
-        self.view = glm.translate(glm.mat4(1.0), glm.vec3(0.0, 0.0, -5.0))
+        self.view = glm.translate(glm.mat4(1.0), glm.vec3(0.0, 0.0, -10.0))
         self.projection = glm.perspective(glm.radians(45.0), 800.0 / 600.0, 0.1, 100.0)
 
         model_view_matrix = self.view * self.model

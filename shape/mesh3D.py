@@ -156,7 +156,7 @@ class MathFunction:
         self.vao.activate()
         GL.glDrawElements(GL.GL_TRIANGLE_STRIP, len(self.indices), GL.GL_UNSIGNED_INT, None)
 
-class Terrain:
+class Graph:
     def __init__(self, vert_shader, frag_shader, func):
         self.shader = Shader(vert_shader, frag_shader)
         self.uma = UManager(self.shader)
@@ -215,11 +215,9 @@ class Terrain:
         X, Z = np.meshgrid(self.range_x, self.range_z)
         Y = self.function(X, Z)  # Use the provided function to compute Y
 
-        np.savetxt('y.txt', Y)
-
         # Scale Y to get mesh look better
         self.Y_min, self.Y_max = Y.min(), Y.max()
-        Y = 2 * (Y - self.Y_min) / (self.Y_max - self.Y_min) - 1  # Rescale to [-1, 1]
+        Y = 3 * (Y - self.Y_min) / (self.Y_max - self.Y_min) - 1.5  # Rescale to [-1.5, 1.5]
         vertices = np.column_stack((X.ravel(), Y.ravel(), Z.ravel()))
         self.vertices = vertices.astype(np.float32)
 

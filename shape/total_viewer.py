@@ -481,7 +481,7 @@ class Viewer:
         # Clear previous plot
         self.ax.clear()
         
-        self.X, self.Z = np.meshgrid(self.values, self.values)
+        self.X, self.Z = np.meshgrid(self.mathfunc.range_x, self.mathfunc.range_x)
 
         # Get the current function if it exists
         if hasattr(self, 'func') and self.func is not None:
@@ -884,14 +884,14 @@ class Viewer:
             drawable.draw()
 
         # Render each camera's view on the right
-        # for i, pyramid in enumerate(self.pyramids):
-        #     row, col = divmod(i, cols)
-        #     GL.glViewport(left_width + col * cell_width, row * cell_height, cell_width, cell_height)
-        #     for drawable in self.drawables:
-        #         drawable.view = pyramid.view
-        #         drawable.projection = pyramid.projection
-        #         drawable.model = self.trackball.matrix()
-        #         drawable.draw()
+        for i, pyramid in enumerate(self.pyramids):
+            row, col = divmod(i, cols)
+            GL.glViewport(left_width + col * cell_width, row * cell_height, cell_width, cell_height)
+            for drawable in self.drawables:
+                drawable.view = pyramid.view
+                drawable.projection = pyramid.projection
+                drawable.model = self.trackball.matrix()
+                drawable.draw()
 
     def run(self):
         """ Main render loop for this OpenGL windows """
@@ -913,7 +913,7 @@ class Viewer:
                 ########################################################################
                 sphere = None
                 for drawable in self.drawables:
-                    if isinstance(drawable, (MathFunction, Terrain)):
+                    if isinstance(drawable, (MathFunction, Graph)):
                         self.mathfunc = drawable
 
                     if isinstance(drawable, (Sphere, SubdividedSphere)):
@@ -926,7 +926,7 @@ class Viewer:
                 ########################################################################
                 sphere = None
                 for drawable in self.drawables:
-                    if isinstance(drawable, (MathFunction, Terrain)):
+                    if isinstance(drawable, (MathFunction, Graph)):
                         self.mathfunc = drawable
 
                     if isinstance(drawable, (Sphere, SubdividedSphere)):
@@ -938,7 +938,7 @@ class Viewer:
                 #                     Two Optimizers Visualization                     #
                 ########################################################################
                 for drawable in self.drawables:
-                    if isinstance(drawable, (MathFunction, Terrain)):
+                    if isinstance(drawable, (MathFunction, Graph)):
                         self.mathfunc = drawable
                 self.visualize_2_optimizers()
 
@@ -974,7 +974,8 @@ class Viewer:
             self.update_contour_trail()
 
             # Update and render contour plot
-            self.update_contour_plot()
+            if self.mathfunc:
+                self.update_contour_plot()
 
             self.update_pyramid_view()
 
@@ -1075,7 +1076,7 @@ class Viewer:
         if self.mesh_option and self.selected_function:  # DynamicMesh
             self.func = get_function(self.selected_function)
             if self.selected_function == '3*(1-x)**2*exp(-x**2-(z+1)**2)-10*(x/5 - x**3 - z**5)*exp(-x**2-z**2) - 1/3*exp(-(x+1)**2-z**2)':
-                model.append(Terrain("shader/phong.vert", "shader/phong.frag", self.func).setup())    
+                model.append(Graph("shader/phong.vert", "shader/phong.frag", self.func).setup())    
             else:
                 model.append(MathFunction("shader/phong.vert", "shader/phong.frag", self.func).setup())
         if self.obj_option:  # OBJ File

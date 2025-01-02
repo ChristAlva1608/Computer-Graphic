@@ -74,6 +74,7 @@ class UManager(object):
     def setup_texture(self, sampler_name, image_file):
         rgb_image = UManager.load_texture(image_file)
 
+        # Use a specific program based on ID, all the code below affect to this program until another program is used
         GL.glUseProgram(self.shader.render_idx) # must call before calling to GL.glUniform1i
         texture_idx = GL.glGenTextures(1)
         binding_loc = self._get_texture_loc()
