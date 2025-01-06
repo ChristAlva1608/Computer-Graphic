@@ -60,6 +60,10 @@ class Triangle:
         self.shader = Shader(vert_shader, frag_shader)
         self.uma = UManager(self.shader)
 
+    def update_shader(self, shader):
+        self.shader = shader
+        self.uma = UManager(self.shader)
+        
     def setup(self):
         self.vao.add_vbo(0, self.vertices, ncomponents=3, dtype=GL.GL_FLOAT, normalized=False, stride=0, offset=None)
         self.vao.add_vbo(1, self.colors, ncomponents=3, dtype=GL.GL_FLOAT, normalized=False, stride=0, offset=None)

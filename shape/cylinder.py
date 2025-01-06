@@ -6,11 +6,11 @@ import math
 import ctypes
 
 class Cylinder:
-    def __init__(self, shader, radius=1.0, height=2.0, sectors=32):
+    def __init__(self, vert_shader, frag_shader, radius=1.0, height=2.0, sectors=32):
         self.radius = radius
         self.height = height
         self.sectors = sectors
-        self.shader = shader
+        self.shader = Shader(vert_shader, frag_shader)
         self.uma = UManager(self.shader)
         self.vao = VAO()
         
@@ -28,7 +28,7 @@ class Cylinder:
         # Side vertices (2 circles of vertices for top and bottom)
         for i in range(self.sectors + 1):
             sector_angle = i * sector_step
-            
+
             x = self.radius * math.cos(sector_angle)
             y = self.radius * math.sin(sector_angle)
             

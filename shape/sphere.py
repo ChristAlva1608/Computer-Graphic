@@ -6,11 +6,11 @@ import numpy as np
 import math
 
 class Sphere:
-    def __init__(self, shader, radius=0.05, sectors=20, stacks=20):
+    def __init__(self, vert_shader, frag_shader, radius=0.05, sectors=20, stacks=20):
         self.radius = radius
         self.sectors = sectors
         self.stacks = stacks
-        self.shader = shader
+        self.shader = Shader(vert_shader, frag_shader)
         self.uma = UManager(self.shader)
         self.vao = VAO()
 
@@ -62,6 +62,10 @@ class Sphere:
 
         # Generate random colors for each vertex
         self.colors = np.tile([1.0, 1.0, 0.0], (len(vertices), 1)).astype(np.float32) # yellow
+
+    def update_shader(self, shader):
+        self.shader = shader
+        self.uma = UManager(self.shader)
 
     def setup(self):
         self.vao.add_vbo(0, self.vertices, ncomponents=3, stride=0, offset=None)
@@ -119,10 +123,10 @@ class Sphere:
         GL.glDrawElements(GL.GL_TRIANGLE_STRIP, len(self.indices), GL.GL_UNSIGNED_INT, None)
 
 class SubdividedSphere:
-    def __init__(self, shader, radius=0.2, subdivisions=3):
+    def __init__(self, vert_shader, frag_shader, radius=0.2, subdivisions=3):
         self.radius = radius
         self.subdivisions = subdivisions
-        self.shader = shader
+        self.shader = Shader(vert_shader, frag_shader)
         self.uma = UManager(self.shader)
         self.vao = VAO()
         
@@ -240,6 +244,10 @@ class SubdividedSphere:
         # Generate random colors for vertices
         self.colors = np.tile([1.0, 1.0, 0.0], (len(vertices), 1)).astype(np.float32)
 
+    def update_shader(self, shader):
+        self.shader = shader
+        self.uma = UManager(self.shader)
+        
     def setup(self):
         self.vao.add_vbo(0, self.vertices, ncomponents=3, stride=0, offset=None)
         self.vao.add_vbo(1, self.colors, ncomponents=3, stride=0, offset=None)

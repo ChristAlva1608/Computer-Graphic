@@ -35,6 +35,10 @@ class Floor:
             0.5, 0.5, 0.5
         ], dtype=np.float32)
 
+    def update_shader(self, shader):
+        self.shader = shader
+        self.uma = UManager(self.shader)
+        
     def setup(self):
         # Set up vertex buffer objects
         self.vao.add_vbo(0, self.vertices.reshape(-1, 6)[:, 0:3], ncomponents=3, dtype=GL.GL_FLOAT, normalized=False, stride=0, offset=None)

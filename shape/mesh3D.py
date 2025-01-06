@@ -64,6 +64,7 @@ class MathFunction:
 
         X, Z = np.meshgrid(self.range_x, self.range_z)
         Y = self.function(X, Z)  # Use the provided function to compute Y
+        self.Y_min, self.Y_max = Y.min(), Y.max()
         vertices = np.column_stack((X.ravel(), Y.ravel(), Z.ravel()))
         self.vertices = vertices.astype(np.float32)
 
@@ -101,6 +102,10 @@ class MathFunction:
                     indices.append(next_row_vertex - 1)  # Previous vertex in the row below
         
         self.indices = np.array(indices, dtype=np.uint32)
+
+    def update_shader(self, shader):
+        self.shader = shader
+        self.uma = UManager(self.shader)
 
     def setup(self):
         self.vao.add_vbo(0, self.vertices, ncomponents=3, stride=0, offset=None)
@@ -256,6 +261,10 @@ class Graph:
         
         self.indices = np.array(indices, dtype=np.uint32)
 
+    def update_shader(self, shader):
+        self.shader = shader
+        self.uma = UManager(self.shader)
+        
     def setup(self):
         self.vao.add_vbo(0, self.vertices, ncomponents=3, stride=0, offset=None)
         self.vao.add_vbo(1, self.colors, ncomponents=3, stride=0, offset=None)

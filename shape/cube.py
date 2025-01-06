@@ -68,7 +68,10 @@ class Cube(object):
         self.uma = UManager(self.shader)
         #
      
-
+    def update_shader(self, shader):
+        self.shader = shader
+        self.uma = UManager(self.shader)
+        
     """
     Create object -> call setup -> call draw
     """

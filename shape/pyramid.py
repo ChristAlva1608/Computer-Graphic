@@ -6,7 +6,7 @@ import glfw
 import ctypes
 
 class Pyramid:
-    def __init__(self, shader, base_width=0.2, base_height=0.2, height=0.3):
+    def __init__(self, vert_shader, frag_shader, base_width=0.2, base_height=0.2, height=0.3):
         # Define vertices for the pyramid: 4 base vertices and 1 apex vertex
         # Changed vertex coordinates to have Y as up axis
         self.vertices = np.array([
@@ -53,6 +53,10 @@ class Pyramid:
 
         # Initialize shader, VAO, and other parameters
         self.vao = VAO()
+        self.shader = Shader(vert_shader, frag_shader)
+        self.uma = UManager(self.shader)
+        
+    def update_shader(self, shader):
         self.shader = shader
         self.uma = UManager(self.shader)
 
