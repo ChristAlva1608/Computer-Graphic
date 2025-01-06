@@ -7,10 +7,10 @@ This repo contains all source code of Computer Graphic course
 3. python3 shape/viewer.py
 
 # Step to visualize shapes in UI
-1. Select omshape from dropdown
+1. Select a shape from Dropdown list
 2. The shape will be in static view and cannot interact to rotate them
 3. To rotate them, select "Using Trackball" in Option
-4. To move around the object, select "Move camera" in Option, then click W,S,A,D, to go forward, backward, left, right
+4. To move around the object, select "Move camera" in Option, then click W, S, A, D to go forward, backward, left, right
 5. To visualize a single optimizer:
     - Select Mesh in Shape, and select the function
     - Select Sphere/SubdivideSphere in Shape
@@ -28,4 +28,4 @@ This repo contains all source code of Computer Graphic course
     - Select "Multi Camera" in Options
     - Click Confirm
     - By default, the whole multi-camera system can be rotated by trackball, which will not change in each camera view on the right viewport
-    - To see the change in each camera view, select "Rotation" in Options and click Confirm
+    - To see the change in each camera view, select "Rotate Object" in Options and click Confirm
